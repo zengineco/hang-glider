@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>WINDSURF 🌊</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: #0a0a1a;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  min-height: 100vh;
+  font-family: 'Press Start 2P', monospace;
+  overflow: hidden;
+  user-select: none;
+  touch-action: none;
+}
+#wrap {
+  position: relative;
+  width: min(900px, 100vw);
+  aspect-ratio: 16/9;
+}
+canvas {
+  display: block; width: 100%; height: 100%;
+  border-radius: 8px;
+  image-rendering: pixelated;
+  box-shadow: 0 0 60px rgba(0,200,255,0.3), 0 0 120px rgba(255,100,30,0.2);
+}
+#hud { position:absolute; inset:0; pointer-events:none; border-radius:8px; overflow:hidden; }
+#score-wrap {
+  position:absolute; top:10px; left:50%; transform:translateX(-50%);
+  text-align:center;
+}
+#score-lbl { font-size:clamp(7px,1.1vw,10px); color:rgba(255,220,100,0.7); letter-spacing:3px; }
+#score-num { font-size:clamp(22px,4vw,42px); color:#FFD700; text-shadow:0 0 20px rgba(255,215,0,0.8), 3px 3px 0 #7a3e00; line-height:1.1; }
+#timer-wrap {
+  position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+}
+#timer-lbl { font-size:clamp(6px,0.9vw,8px); color:rgba(255,255,255,0.5); letter-spacing:2px; }
+#timer-bar-bg { width:clamp(120px,22vw,200px); height:8px; background:rgba(255,255,255,0.15); border-radius:4px; overflow:hidden; border:1px solid rgba(255,255,255,0.2); }
+#timer-bar { height:100%; background:linear-gradient(90deg,#ffd700,#ff6b35); border-radius:3px; transition:width 0.15s linear; }
+#speed-wrap {
+  position:absolute; top:10px; left:14px;
+  display:flex; flex-direction:column; gap:3px;
+}
+#speed-lbl { font-size:clamp(5px,0.8vw,8px); color:rgba(255,255,255,0.55); letter-spacing:2px; }
+#speed-bar-bg { width:clamp(50px,7vw,70px); height:7px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden; }
+#speed-bar { height:100%; background:linear-gradient(90deg,#56cfe1,#48cae4); border-radius:3px; transition:width 0.1s; }
+#speed-num { font-size:clamp(8px,1.3vw,12px); color:#56cfe1; }
+#trick-msg {
+  position:absolute; top:42%; left:50%; transform:translate(-50%,-50%);
+  font-size:clamp(14px,2.8vw,28px); color:#FFD700;
+  text-shadow:3px 3px 0 #7a3e00, 0 0 30px rgba(255,215,0,0.9);
+  text-align:center; pointer-events:none; opacity:0;
+  transition:opacity 0.15s; letter-spacing:2px; white-space:nowrap;
+}
+#combo-badge {
+  position:absolute; top:10px; right:14px;
+  font-size:clamp(8px,1.4vw,13px); color:#ff6b35;
+  text-shadow:2px 2px 0 #7a1e00; opacity:0; transition:opacity 0.3s;
+}
+.screen {
+  position:absolute; inset:0; border-radius:8px; overflow:hidden;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+}
+.scr-bg {
+  position:absolute; inset:0; z-index:0;
+  background:linear-gradient(170deg, #ff6b35 0%, #f4a261 30%, #0096c7 65%, #023e8a 100%);
+}
+.scr-body { position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; gap:12px; padding:16px; }
+.game-title {
+  font-size:clamp(28px,6vw,70px); color:#fff;
+  text-shadow:4px 4px 0 #003a6b, 8px 8px 0 rgba(0,0,0,0.3);
+  letter-spacing:4px; line-height:1;
+}
+.subtitle { font-size:clamp(6px,1vw,10px); color:rgba(255,255,255,0.8); letter-spacing:4px; }
+.ctrl-box {
+  background:rgba(0,0,0,0.35); backdrop-filter:blur(3px);
+  border-radius:8px; padding:12px 20px;
+  font-size:clamp(6px,1vw,9px); color:rgba(255,255,255,0.9);
+  line-height:2.2; letter-spacing:1px;
+  border:1px solid rgba(255,255,255,0.15);
+}
+.big-btn {
+  font-family:'Press Start 2P', monospace;
+  font-size:clamp(10px,1.6vw,16px); letter-spacing:3px;
+  padding:12px 36px; background:#ffd700; color:#1a1a00;
+  border:none; border-radius:4px; cursor:pointer;
+  box-shadow:0 5px 0 #7a6000, 4px 9px 0 rgba(0,0,0,0.3);
+  transition:transform 0.1s, box-shadow 0.1s; pointer-events:all;
+}
+.big-btn:hover  { transform:translateY(-2px); box-shadow:0 7px 0 #7a6000, 4px 11px 0 rgba(0,0,0,0.3); }
+.big-btn:active { transform:translateY(3px);  box-shadow:0 2px 0 #7a6000; }
+#res-score { font-size:clamp(40px,8vw,90px); color:#ffd700; text-shadow:4px 4px 0 #7a3e00, 8px 8px 0 rgba(0,0,0,0.3); line-height:1; }
+#res-label { font-size:clamp(8px,1.2vw,12px); color:rgba(255,255,255,0.7); letter-spacing:4px; }
+#res-tricks { font-size:clamp(7px,1vw,9px); color:rgba(255,255,255,0.8); letter-spacing:2px; line-height:2.4; text-align:center; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div id="hud" style="display:none">
+    <div id="score-wrap">
+      <div id="score-lbl">SCORE</div>
+      <div id="score-num">0.0</div>
+    </div>
+    <div id="speed-wrap">
+      <div id="speed-lbl">SPEED</div>
+      <div id="speed-bar-bg"><div id="speed-bar" style="width:40%"></div></div>
+      <div id="speed-num">—</div>
+    </div>
+    <div id="combo-badge">x2 COMBO!</div>
+    <div id="trick-msg"></div>
+    <div id="timer-wrap">
+      <div id="timer-bar-bg"><div id="timer-bar"></div></div>
+      <div id="timer-lbl">TIME REMAINING</div>
+    </div>
+  </div>
+
+  <div class="screen" id="scr-start">
+    <div class="scr-bg"></div>
+    <div class="scr-body">
+      <div style="font-size:clamp(7px,1vw,9px);letter-spacing:5px;color:rgba(255,255,255,0.6);font-family:'Press Start 2P'">ZENGINE</div>
+      <div class="game-title">WINDSURF</div>
+      <div class="subtitle">🌊 CARVE · JUMP · SHRED · 45 SECONDS 🌊</div>
+      <div class="ctrl-box">
+        <b>← / →</b>  CARVE  (slow down / speed up)<br>
+        <b>↑ / SPACE</b>  JUMP  (hold longer = MEGA jump)<br>
+        <b>A / D</b>  SPIN IN AIR &nbsp;|&nbsp; <b>↓</b>  GRAB<br>
+        <b>↑ (in air)</b>  FLIP<br>
+        Carve or jump obstacles! Land clean for dolphins! 🐬
+      </div>
+      <button class="big-btn" id="btn-start">CATCH THE WIND 🤙</button>
+    </div>
+  </div>
+
+  <div class="screen" id="scr-result" style="display:none">
+    <div class="scr-bg"></div>
+    <div class="scr-body">
+      <div class="subtitle">RUN COMPLETE</div>
+      <div id="res-score">0.0</div>
+      <div id="res-label">/ 9.9</div>
+      <div id="res-tricks"></div>
+      <button class="big-btn" id="btn-retry">RIDE AGAIN 🌊</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+//  WINDSURF  —  retro 2D glory
+// ═══════════════════════════════════════
+const C  = document.getElementById('c');
+const X  = C.getContext('2d');
+const W  = 900, H = 506;
+C.width  = W; C.height = H;
+
+const SEA_Y    = H * 0.62;
+const RUN_SEC  = 45;
+const BASE_SPD = 4.0;
+const MAX_SPD  = 11.0;
+const MIN_SPD  = 1.2;
+
+let STATE = 'start';
+let keys  = {};
+let gP, gObs, gParts, gCritters, gAnimals;
+let gScore, gCombo, gTricks, gTimer, gScroll, gWave;
+let lastTS = 0, _obsTO = null;
+
+// ── Init ─────────────────────────────────
+function initGame() {
+  keys = {};
+  gScroll = { speed: BASE_SPD, bgOff:0, midOff:0 };
+  gWave   = { t:0, nearAmp:22, nearFreq:0.012, farAmp:12, farFreq:0.008 };
+  gP = {
+    x: W*0.22, y: SEA_Y-10,
+    vy:0, inAir:false, airTime:0,
+    jumpHeld:0, _freshJump:false,
+    sailAngle:0, boardTilt:0,
+    spinDeg:0, flipDeg:0,
+    grabbed:false, carvePower:0, carveSpray:0,
+  };
+  gObs=[]; gParts=[]; gCritters=[]; gAnimals=[];
+  gScore={raw:0}; gCombo=1;
+  gTricks={log:[],spinAcc:0,flipAcc:0,grabbed:false,grabHeld:0,totalPts:0};
+  gTimer={elapsed:0, remaining:RUN_SEC};
+  schedObs();
+  schedCritters();
+}
+
+// ── Input ────────────────────────────────
+const isUp    = () => keys['ArrowUp']   || keys['KeyW'] || keys['Space'];
+const isDown  = () => keys['ArrowDown'] || keys['KeyS'];
+const isLeft  = () => keys['ArrowLeft'] || keys['KeyA'];
+const isRight = () => keys['ArrowRight']|| keys['KeyD'];
+
+window.addEventListener('keydown', e => {
+  if (!keys[e.code] && (e.code==='ArrowUp'||e.code==='KeyW'||e.code==='Space')) {
+    if (gP && !gP.inAir) gP._freshJump = true;
+  }
+  keys[e.code] = true;
+  if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// ── Wave math ────────────────────────────
+function waveY(x, t) {
+  return SEA_Y
+    + Math.sin(x*gWave.nearFreq + t*2.1) * gWave.nearAmp
+    + Math.sin(x*gWave.farFreq  + t*1.4) * gWave.farAmp * 0.6;
+}
+
+// ── Obstacle scheduling ──────────────────
+function schedObs() {
+  if (STATE!=='playing') return;
+  _obsTO = setTimeout(spawnObs, 2600+Math.random()*2400);
+}
+function spawnObs() {
+  if (STATE!=='playing') return;
+  const pool = ['shell','shell','shark','shark','ship'];
+  const type = pool[Math.floor(Math.random()*pool.length)];
+  gObs.push({
+    type, x:W+70, cleared:false, hit:false,
+    w: type==='ship'?100:type==='shark'?50:32,
+    h: type==='ship'?80:type==='shark'?34:22,
+  });
+  schedObs();
+}
+
+// ── Critter scheduling ────────────────────
+function schedCritters() {
+  if (STATE!=='playing') return;
+  setTimeout(()=>{
+    if (STATE!=='playing') return;
+    const t=['fin','fin','dolphin_bg'];
+    gCritters.push({
+      type:t[Math.floor(Math.random()*t.length)],
+      x:W+40, y:SEA_Y+8+Math.random()*18,
+      phase:Math.random()*Math.PI*2, speed:1.4+Math.random()
+    });
+    schedCritters();
+  }, 5000+Math.random()*7000);
+}
+
+// ── Particles ────────────────────────────
+function spray(x,y,n=8,col='rgba(180,230,255,0.85)') {
+  for(let i=0;i<n;i++){
+    const a=-Math.PI*0.7+Math.random()*Math.PI*0.6, s=2+Math.random()*4;
+    gParts.push({x,y,vx:Math.cos(a)*s-gScroll.speed*0.2,vy:Math.sin(a)*s,life:1,decay:0.03+Math.random()*0.04,r:2+Math.random()*3,col});
+  }
+}
+function burst(x,y){
+  for(let i=0;i<18;i++){
+    const a=(i/18)*Math.PI*2, s=2+Math.random()*5;
+    gParts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,decay:0.022+Math.random()*0.025,r:3+Math.random()*5,col:`hsl(${40+Math.random()*40},100%,${55+Math.random()*25}%)`});
+  }
+}
+
+// ── Physics ───────────────────────────────
+function updatePlayer(dt) {
+  const p  = gP;
+  const wy = waveY(p.x, gWave.t);
+
+  if (!p.inAir) {
+    // Carve
+    if (isLeft()) {
+      p.carvePower = Math.max(p.carvePower-0.05,-1);
+      p.boardTilt  += (-0.4 - p.boardTilt)*0.14;
+      p.carveSpray  = 8;
+    } else if (isRight()) {
+      p.carvePower = Math.min(p.carvePower+0.05,1);
+      p.boardTilt  += (0.4 - p.boardTilt)*0.14;
+      p.carveSpray  = 8;
+    } else {
+      p.carvePower *= 0.93;
+      p.boardTilt  *= 0.88;
+    }
+
+    const tgt = BASE_SPD + p.carvePower*(p.carvePower>0?(MAX_SPD-BASE_SPD):(BASE_SPD-MIN_SPD));
+    gScroll.speed += (tgt - gScroll.speed)*0.055;
+    gScroll.speed  = Math.max(MIN_SPD, Math.min(MAX_SPD, gScroll.speed));
+
+    if (p.carveSpray>0) {
+      p.carveSpray--;
+      if (Math.random()<0.5) spray(p.x-10, wy, 3, 'rgba(255,255,255,0.75)');
+    }
+
+    p.sailAngle += (p.carvePower*0.55 - p.sailAngle)*0.12;
+    p.y         += (wy - p.y)*0.25;
+
+    // Jump charging
+    if (isUp()) {
+      p.jumpHeld = Math.min(p.jumpHeld+1, 55);
+    } else if (p._freshJump || p.jumpHeld>0) {
+      const power = 9 + p.jumpHeld*0.22 + gScroll.speed*0.45;
+      p.vy   = -power;
+      p.inAir= true; p.airTime=0; p.jumpHeld=0; p._freshJump=false;
+      gTricks.spinAcc=0; gTricks.flipAcc=0; gTricks.grabbed=false; gTricks.grabHeld=0;
+      spray(p.x, p.y, 16, 'rgba(200,240,255,0.9)');
+    } else {
+      p._freshJump=false; p.jumpHeld=0;
+    }
+  } else {
+    // In air
+    p.airTime++;
+    if (isLeft())  { gTricks.spinAcc -= 5; p.boardTilt+=(-0.9-p.boardTilt)*0.2; }
+    if (isRight()) { gTricks.spinAcc += 5; p.boardTilt+=(0.9-p.boardTilt)*0.2; }
+    if (isUp()&&p.airTime>6) gTricks.flipAcc += 6;
+    if (isDown()&&!gTricks.grabbed) {
+      gTricks.grabbed=true; gTricks.grabHeld=0;
+      regTrick('grab');
+    }
+    if (gTricks.grabbed) gTricks.grabHeld++;
+    p.vy += 0.42;
+    p.y  += p.vy;
+    if (p.vy>0 && p.y>=wy) land(wy);
+  }
+}
+
+function land(wy) {
+  const p   = gP;
+  const airSec  = p.airTime/60;
+  const spinAbs = Math.abs(gTricks.spinAcc);
+  const flipAbs = Math.abs(gTricks.flipAcc);
+
+  if      (spinAbs>=520){ regTrick('spin540'); gCombo=Math.min(gCombo+1,5); }
+  else if (spinAbs>=340){ regTrick('spin360'); gCombo=Math.min(gCombo+1,4); }
+  else if (spinAbs>=165){ regTrick('spin180'); gCombo=Math.min(gCombo+1,3); }
+  else if (spinAbs>=75) { regTrick('spin90'); }
+
+  if      (flipAbs>=700){ regTrick('dblFlip'); gCombo=Math.min(gCombo+1,5); }
+  else if (flipAbs>=330){ regTrick('flip');    gCombo=Math.min(gCombo+1,3); }
+
+  if (airSec>=2.5) regTrick('megaAir');
+  else if (airSec>=1.5) regTrick('bigAir');
+
+  // Animal reactions
+  const trickScore = spinAbs+flipAbs;
+  if (airSec>=1.5 && trickScore>=180) {
+    gAnimals.push({type:'dolphin',x:p.x+80+Math.random()*60,arcT:0});
+  } else if (airSec>=0.7 && trickScore<60 && airSec<1.2) {
+    gAnimals.push({type:'orca',x:p.x+110,riseT:0,wink:false});
+  }
+
+  p.inAir=false; p.y=wy; p.vy=0; p.boardTilt*=0.4;
+  gTricks.spinAcc=0; gTricks.flipAcc=0; gTricks.grabbed=false;
+  spray(p.x, p.y, 12);
+  clearTimeout(gTricks._cTO);
+  gTricks._cTO = setTimeout(()=>{ gCombo=1; comboBadge(); }, 3200);
+  comboBadge();
+}
+
+// ── Tricks ───────────────────────────────
+const TD = {
+  spin90:   {n:'SPIN!',pts:5}, spin180:{n:'180°',pts:12},
+  spin360:  {n:'360° 🔥',pts:28}, spin540:{n:'540°!! 🔥',pts:55},
+  flip:     {n:'FLIP!',pts:20}, dblFlip:{n:'DBL FLIP!! 🔥',pts:50},
+  grab:     {n:'GRAB',pts:8}, bigAir:{n:'BIG AIR 🌊',pts:18},
+  megaAir:  {n:'MEGA AIR 🚀',pts:40},
+  jumpedIt: {n:'JUMPED IT! ✊',pts:15}, carvedIt:{n:'CARVED IT! 💨',pts:10},
+};
+
+function regTrick(key,bonus=0){
+  const d=TD[key]; if(!d) return;
+  const pts=(d.pts+bonus)*gCombo;
+  gTricks.totalPts+=pts;
+  gTricks.log.push({name:d.n,pts});
+  trickMsg(d.n,pts);
+  burst(gP.x, gP.y-20);
+}
+
+// ── Obstacles ────────────────────────────
+function updateObs(){
+  for(let i=gObs.length-1;i>=0;i--){
+    const o=gObs[i];
+    o.x -= gScroll.speed;
+    const oy=waveY(o.x+o.w/2, gWave.t);
+    o.drawY=oy;
+    if(!o.cleared&&!o.hit){
+      const p=gP;
+      if(o.x<p.x+24 && o.x+o.w>p.x-24){
+        if(p.inAir&&p.y<oy-12){
+          o.cleared=true; regTrick('jumpedIt');
+        } else if(!p.inAir&&Math.abs(gScroll.speed-BASE_SPD)>2.2&&o.type==='shell'){
+          o.cleared=true; regTrick('carvedIt');
+          spray(p.x,p.y,10,'rgba(255,220,100,0.8)');
+        } else if(!p.inAir&&p.y+18>oy-o.h*0.4){
+          o.hit=true; gCombo=1; comboBadge();
+          spray(p.x,p.y,16,'rgba(255,80,80,0.9)');
+          trickMsg('WIPEOUT! 💥',0);
+          gTricks.totalPts=Math.max(0,gTricks.totalPts-25);
+        }
+      }
+    }
+    if(o.x+o.w<-30) gObs.splice(i,1);
+  }
+}
+
+// ── Animals ───────────────────────────────
+function updateAnimals(dt){
+  for(let i=gAnimals.length-1;i>=0;i--){
+    const a=gAnimals[i];
+    if(a.type==='dolphin'){
+      a.arcT+=dt*1.8;
+      if(a.arcT>Math.PI) gAnimals.splice(i,1);
+    } else if(a.type==='orca'){
+      a.riseT+=dt*1.3;
+      if(a.riseT>0.7&&a.riseT<1.8) a.wink=true; else a.wink=(a.riseT>=1.8)?false:a.wink;
+      if(a.riseT>2.6) gAnimals.splice(i,1);
+    }
+  }
+  for(let i=gCritters.length-1;i>=0;i--){
+    const c=gCritters[i];
+    c.x-=gScroll.speed*0.55;
+    c.phase+=dt*3;
+    if(c.x<-60) gCritters.splice(i,1);
+  }
+}
+
+function updateParts(){
+  for(let i=gParts.length-1;i>=0;i--){
+    const p=gParts[i];
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.14; p.life-=p.decay;
+    if(p.life<=0) gParts.splice(i,1);
+  }
+}
+
+// ── HUD helpers ───────────────────────────
+function comboBadge(){
+  const el=document.getElementById('combo-badge');
+  if(gCombo>1){el.textContent=`x${gCombo} COMBO!`;el.style.opacity='1';}
+  else el.style.opacity='0';
+}
+let _tTO=null;
+function trickMsg(name,pts){
+  const el=document.getElementById('trick-msg');
+  el.textContent=pts>0?`${name}  +${pts}`:name;
+  el.style.opacity='1';
+  clearTimeout(_tTO);
+  _tTO=setTimeout(()=>el.style.opacity='0',950);
+}
+function updateHUD(){
+  document.getElementById('score-num').textContent=calcScore().toFixed(1);
+  const pct=(gTimer.remaining/RUN_SEC)*100;
+  document.getElementById('timer-bar').style.width=pct+'%';
+  if(pct<25) document.getElementById('timer-bar').style.background='linear-gradient(90deg,#ff4444,#ff2222)';
+  const sp=((gScroll.speed-MIN_SPD)/(MAX_SPD-MIN_SPD))*100;
+  document.getElementById('speed-bar').style.width=sp+'%';
+  document.getElementById('speed-num').textContent=Math.round(gScroll.speed*8.5)+' km/h';
+}
+function calcScore(){
+  const r=Math.min(gTricks.totalPts/480,1);
+  return Math.round(Math.min(Math.pow(r,0.65)*9.9,9.9)*10)/10;
+}
+
+// ════════════════════════════════════════
+//  DRAWING
+// ════════════════════════════════════════
+function drawSky(t){
+  const pct=1-gTimer.remaining/RUN_SEC;
+  const g=X.createLinearGradient(0,0,0,SEA_Y);
+  g.addColorStop(0,   `hsl(${lerp(205,30,pct)},80%,${lerp(45,42,pct)}%)`);
+  g.addColorStop(0.5, `hsl(${lerp(30,20,pct)},90%,${lerp(68,58,pct)}%)`);
+  g.addColorStop(1,   `hsl(${lerp(28,15,pct)},95%,${lerp(75,62,pct)}%)`);
+  X.fillStyle=g; X.fillRect(0,0,W,SEA_Y+4);
+
+  // Sun
+  const sx=W*0.72, sy=SEA_Y*0.22;
+  const sg=X.createRadialGradient(sx,sy,0,sx,sy,80);
+  sg.addColorStop(0,'rgba(255,240,150,1)');
+  sg.addColorStop(0.4,'rgba(255,180,60,0.7)');
+  sg.addColorStop(1,'rgba(255,100,30,0)');
+  X.fillStyle=sg; X.beginPath(); X.arc(sx,sy,80,0,Math.PI*2); X.fill();
+  X.save(); X.globalAlpha=0.12; X.strokeStyle='#FFD700'; X.lineWidth=20;
+  X.translate(sx,sy);
+  for(let i=0;i<8;i++){X.rotate(Math.PI/4);X.beginPath();X.moveTo(0,0);X.lineTo(0,110);X.stroke();}
+  X.restore();
+
+  // Distant hills
+  gScroll.bgOff=(gScroll.bgOff+gScroll.speed*0.14)%(W*2);
+  X.fillStyle='rgba(20,30,60,0.45)';
+  X.beginPath(); X.moveTo(0,SEA_Y);
+  for(let i=0;i<=40;i++){
+    const lx=i/40*W*2-gScroll.bgOff;
+    const ly=SEA_Y*0.7+Math.sin(i*0.7)*20+Math.sin(i*1.5)*10;
+    if(i===0) X.moveTo(lx,ly); else X.lineTo(lx,ly);
+  }
+  X.lineTo(W,SEA_Y); X.lineTo(0,SEA_Y); X.closePath(); X.fill();
+}
+
+function drawOcean(t){
+  const og=X.createLinearGradient(0,SEA_Y,0,H);
+  og.addColorStop(0,'#0096c7'); og.addColorStop(0.3,'#0077b6');
+  og.addColorStop(0.7,'#023e8a'); og.addColorStop(1,'#03045e');
+  X.fillStyle=og; X.fillRect(0,SEA_Y,W,H-SEA_Y);
+  drawWaveRow(t,0,'#48cae4',0.9,1.0,14,22);
+  drawWaveRow(t,18,'#0096c7',0.6,1.4,10,16);
+  drawWaveRow(t,32,'#0077b6',0.4,1.8,7,12);
+
+  // Foam
+  gScroll.midOff=(gScroll.midOff+gScroll.speed*0.5)%(W*2);
+  X.save(); X.globalAlpha=0.2; X.strokeStyle='#fff'; X.lineWidth=1.5;
+  for(let i=0;i<20;i++){
+    const fx=((i/20)*W*2-gScroll.midOff+W*2)%(W*2)-W*0.15;
+    const fy=waveY(fx,t)+Math.random()*5;
+    X.beginPath(); X.moveTo(fx,fy); X.lineTo(fx+16+Math.random()*22,fy); X.stroke();
+  }
+  X.restore();
+}
+
+function drawWaveRow(t,yOff,col,alpha,spd,minA,amp){
+  X.save(); X.globalAlpha=alpha; X.fillStyle=col;
+  X.beginPath();
+  for(let i=0;i<=60;i++){
+    const px=i/60*W;
+    const py=SEA_Y+yOff+Math.sin(px*gWave.nearFreq-t*2.1*spd)*amp+Math.sin(px*gWave.farFreq-t*1.3*spd)*minA*0.6;
+    i===0?X.moveTo(px,py):X.lineTo(px,py);
+  }
+  X.lineTo(W,H); X.lineTo(0,H); X.closePath(); X.fill(); X.restore();
+}
+
+// ── Windsurfer ────────────────────────────
+function drawWindsurfer(p,t){
+  const airRot  = p.inAir ? gTricks.spinAcc*0.017 : 0;
+  const flipRot = p.inAir ? gTricks.flipAcc*0.009 : 0;
+
+  X.save(); X.translate(p.x, p.y);
+
+  // Shadow
+  if(!p.inAir){
+    X.globalAlpha=0.2; X.fillStyle='#002244';
+    X.beginPath(); X.ellipse(2,12,26,5,0,0,Math.PI*2); X.fill(); X.globalAlpha=1;
+  }
+
+  X.rotate(p.boardTilt*0.5+airRot+flipRot);
+
+  // Board
+  const bg=X.createLinearGradient(-26,0,26,0);
+  bg.addColorStop(0,'#ff6b35'); bg.addColorStop(0.4,'#fff5e0'); bg.addColorStop(1,'#ffd700');
+  X.fillStyle=bg; X.strokeStyle='#001a33'; X.lineWidth=2;
+  X.beginPath();
+  X.moveTo(-24,0); X.quadraticCurveTo(-32,4,-22,9);
+  X.lineTo(22,9); X.quadraticCurveTo(32,4,26,0);
+  X.quadraticCurveTo(22,-3,22,-3); X.lineTo(-22,-3); X.closePath();
+  X.fill(); X.stroke();
+  // Fin
+  X.fillStyle='#ff6b35'; X.strokeStyle='#001a33'; X.lineWidth=1.5;
+  X.beginPath(); X.moveTo(-18,9); X.lineTo(-22,22); X.lineTo(-10,9); X.closePath(); X.fill(); X.stroke();
+  // Board stripe
+  X.fillStyle='#003a6b'; X.fillRect(-6,-1,18,3);
+
+  // Legs
+  X.fillStyle='#1a1a2e';
+  if(gTricks.grabbed&&p.inAir){X.fillRect(-6,-16,5,12);X.fillRect(4,-16,5,12);}
+  else{X.fillRect(-8,-18,5,16);X.fillRect(4,-18,5,16);}
+
+  // Wetsuit
+  const wg=X.createLinearGradient(-9,-42,9,-20);
+  wg.addColorStop(0,'#1a6baa'); wg.addColorStop(1,'#0a3a6e');
+  X.fillStyle=wg; X.strokeStyle='#001a33'; X.lineWidth=1.5;
+  X.beginPath(); X.roundRect(-9,-42,18,22,3); X.fill(); X.stroke();
+  X.fillStyle='#ff6b35'; X.fillRect(-5,-38,10,4);
+
+  // Head
+  X.fillStyle='#ffa45b'; X.strokeStyle='#001a33'; X.lineWidth=1.5;
+  X.beginPath(); X.arc(0,-50,9,0,Math.PI*2); X.fill(); X.stroke();
+  // Helmet
+  X.fillStyle='#ff6b35';
+  X.beginPath(); X.ellipse(0,-55,8,5,0,Math.PI,0); X.fill();
+  // Goggles
+  X.fillStyle='#fff'; X.strokeStyle='#333'; X.lineWidth=1;
+  X.beginPath(); X.arc(-3,-50,3,0,Math.PI*2); X.fill(); X.stroke();
+  X.beginPath(); X.arc(4,-50,3,0,Math.PI*2); X.fill(); X.stroke();
+  X.fillStyle='#003';
+  X.beginPath(); X.arc(-3,-50,1.5,0,Math.PI*2); X.fill();
+  X.beginPath(); X.arc(4,-50,1.5,0,Math.PI*2); X.fill();
+  // Goggle bridge
+  X.strokeStyle='#333'; X.lineWidth=1;
+  X.beginPath(); X.moveTo(-1,-50); X.lineTo(1,-50); X.stroke();
+
+  // Arms
+  X.strokeStyle='#1a6baa'; X.lineWidth=3; X.lineCap='round';
+  if(p.inAir){
+    X.beginPath(); X.moveTo(-9,-38); X.lineTo(-20,-28); X.stroke();
+    X.beginPath(); X.moveTo(9,-38); X.lineTo(20,-28); X.stroke();
+  } else {
+    X.beginPath(); X.moveTo(-9,-36); X.lineTo(-16,-26); X.stroke();
+    X.beginPath(); X.moveTo(9,-36); X.lineTo(16,-26); X.stroke();
+  }
+
+  // Sail
+  const sailR=p.sailAngle+Math.sin(t*1.8)*0.04;
+  X.save(); X.translate(4,-22); X.rotate(sailR+(p.inAir?airRot*0.5:0));
+  // Mast
+  X.strokeStyle='#c0c0c0'; X.lineWidth=3; X.lineCap='round';
+  X.beginPath(); X.moveTo(0,0); X.lineTo(0,-68); X.stroke();
+  // Boom
+  X.strokeStyle='#a0a0a0'; X.lineWidth=2;
+  X.beginPath(); X.moveTo(0,-26); X.lineTo(26,-20); X.stroke();
+  // Sail cloth
+  const sailG=X.createLinearGradient(0,-68,32,-8);
+  sailG.addColorStop(0,'rgba(255,220,80,0.95)');
+  sailG.addColorStop(0.5,'rgba(255,120,40,0.9)');
+  sailG.addColorStop(1,'rgba(255,60,20,0.85)');
+  X.fillStyle=sailG; X.strokeStyle='#7a2200'; X.lineWidth=1.5;
+  X.beginPath();
+  X.moveTo(0,-68); X.quadraticCurveTo(34,-46,28,-8);
+  X.lineTo(0,0); X.closePath(); X.fill(); X.stroke();
+  // W logo on sail
+  X.fillStyle='rgba(255,255,255,0.75)'; X.font='bold 10px sans-serif'; X.textAlign='center';
+  X.fillText('W',9,-38);
+  // Harness line
+  X.strokeStyle='rgba(200,200,200,0.6)'; X.lineWidth=1;
+  X.beginPath(); X.moveTo(0,-26); X.lineTo(14,-18); X.stroke();
+  X.restore();
+
+  X.restore();
+}
+
+// ── Obstacles ─────────────────────────────
+function drawObs(o,t){
+  const x=o.x, oy=o.drawY||waveY(o.x+o.w/2,t);
+  X.save();
+  if(o.hit) X.globalAlpha=0.4;
+
+  if(o.type==='shell'){
+    X.translate(x+o.w/2, oy+4);
+    // Shell spiral
+    X.strokeStyle='#c47c4a'; X.lineWidth=2;
+    X.beginPath();
+    for(let a=0;a<Math.PI*3.5;a+=0.14){
+      const r=2+a*2.2, px=Math.cos(a)*r, py=-Math.sin(a)*r*0.7;
+      a<0.01?X.moveTo(px,py):X.lineTo(px,py);
+    }
+    X.stroke();
+    X.fillStyle='#f4a261'; X.strokeStyle='#7a3e00'; X.lineWidth=2;
+    X.beginPath(); X.ellipse(0,0,13,10,0.2,0,Math.PI*2); X.fill(); X.stroke();
+    X.fillStyle='rgba(255,255,255,0.5)';
+    X.beginPath(); X.ellipse(-3,-3,5,2.5,-0.3,0,Math.PI*2); X.fill();
+    if(Math.abs(x-gP.x)<130){
+      X.strokeStyle='rgba(255,80,80,0.5)'; X.lineWidth=2;
+      X.beginPath(); X.ellipse(0,0,20,15,0,0,Math.PI*2); X.stroke();
+    }
+  }
+
+  else if(o.type==='shark'){
+    X.translate(x+o.w/2, oy-4);
+    // Body
+    X.fillStyle='#5a8fa0'; X.strokeStyle='#1a2a35'; X.lineWidth=2;
+    X.beginPath();
+    X.moveTo(-24,0); X.quadraticCurveTo(-10,-9,0,-7);
+    X.quadraticCurveTo(18,-4,24,4);
+    X.quadraticCurveTo(10,10,-10,8);
+    X.quadraticCurveTo(-20,5,-24,0); X.closePath(); X.fill(); X.stroke();
+    // Belly
+    X.fillStyle='#d0eef5'; X.beginPath(); X.ellipse(0,5,14,4,0,0,Math.PI*2); X.fill();
+    // Dorsal
+    X.fillStyle='#4a7a8a'; X.strokeStyle='#1a2a35'; X.lineWidth=2;
+    X.beginPath(); X.moveTo(-4,-7); X.lineTo(0,-26); X.lineTo(12,-7); X.closePath(); X.fill(); X.stroke();
+    // Eye
+    X.fillStyle='#fff'; X.beginPath(); X.arc(13,-2,3.5,0,Math.PI*2); X.fill();
+    X.fillStyle='#111'; X.beginPath(); X.arc(13,-2,1.8,0,Math.PI*2); X.fill();
+    // Teeth
+    X.fillStyle='#fff'; X.strokeStyle='#555'; X.lineWidth=0.8;
+    for(let i=0;i<5;i++){
+      X.beginPath(); X.moveTo(10+i*3,2); X.lineTo(11.5+i*3,8); X.lineTo(13+i*3,2); X.closePath(); X.fill(); X.stroke();
+    }
+    // Tail
+    X.fillStyle='#4a7a8a'; X.strokeStyle='#1a2a35'; X.lineWidth=1.5;
+    X.beginPath(); X.moveTo(-24,0); X.lineTo(-38,-10); X.lineTo(-32,0); X.lineTo(-38,10); X.closePath(); X.fill(); X.stroke();
+  }
+
+  else if(o.type==='ship'){
+    X.translate(x+o.w/2, oy-28);
+    // Hull
+    X.fillStyle='#6b2d0a'; X.strokeStyle='#2a0a00'; X.lineWidth=2.5;
+    X.beginPath();
+    X.moveTo(-46,0); X.lineTo(-50,26); X.lineTo(50,26); X.lineTo(46,0); X.closePath();
+    X.fill(); X.stroke();
+    // Planks
+    X.strokeStyle='rgba(0,0,0,0.25)'; X.lineWidth=1;
+    for(let i=-38;i<40;i+=12){X.beginPath();X.moveTo(i,0);X.lineTo(i+4,26);X.stroke();}
+    // Cannon ports
+    X.fillStyle='#1a0a00';
+    for(let i=-32;i<32;i+=20){X.beginPath();X.arc(i,14,4,0,Math.PI*2);X.fill();}
+    // Deck
+    X.fillStyle='#8b4513'; X.strokeStyle='#2a0a00'; X.lineWidth=2;
+    X.fillRect(-46,-10,92,12); X.strokeRect(-46,-10,92,12);
+    // Mast
+    X.strokeStyle='#5a2a00'; X.lineWidth=4; X.lineCap='round';
+    X.beginPath(); X.moveTo(0,-10); X.lineTo(0,-76); X.stroke();
+    // Crow nest
+    X.fillStyle='#6b2d0a'; X.strokeStyle='#2a0a00'; X.lineWidth=2;
+    X.beginPath(); X.rect(-9,-58,18,13); X.fill(); X.stroke();
+    // Sail
+    const billow=Math.sin(t*1.4)*5;
+    X.fillStyle='rgba(220,200,160,0.92)'; X.strokeStyle='#5a4a30'; X.lineWidth=1.5;
+    X.beginPath();
+    X.moveTo(0,-72); X.quadraticCurveTo(36+billow,-52,32,-28);
+    X.lineTo(0,-26); X.closePath(); X.fill(); X.stroke();
+    // Second sail
+    X.fillStyle='rgba(200,180,140,0.85)'; X.strokeStyle='#5a4a30'; X.lineWidth=1;
+    X.beginPath();
+    X.moveTo(0,-72); X.quadraticCurveTo(-28+billow*0.5,-50,-24,-30);
+    X.lineTo(0,-28); X.closePath(); X.fill(); X.stroke();
+    // Flag + skull
+    X.fillStyle='#111';
+    X.beginPath(); X.rect(-7,-76,14,11); X.fill();
+    X.fillStyle='#fff'; X.font='9px sans-serif'; X.textAlign='center';
+    X.fillText('☠',0,-67);
+    // Rigging
+    X.strokeStyle='rgba(80,50,0,0.5)'; X.lineWidth=1;
+    X.beginPath(); X.moveTo(0,-72); X.lineTo(40,-10); X.stroke();
+    X.beginPath(); X.moveTo(0,-72); X.lineTo(-40,-10); X.stroke();
+  }
+
+  X.globalAlpha=1; X.restore();
+}
+
+// ── Dolphin (cheer) ───────────────────────
+function drawDolphin(a){
+  const arcH=-Math.sin(a.arcT)*95;
+  const dx=a.x, dy=waveY(dx,gWave.t)+arcH;
+  const angle=-Math.sin(a.arcT)*1.2;
+  const prog=a.arcT/Math.PI;
+
+  X.save(); X.translate(dx,dy); X.rotate(angle);
+  X.fillStyle='#56b4d3'; X.strokeStyle='#1a4a6b'; X.lineWidth=2;
+  X.beginPath();
+  X.moveTo(-28,0); X.quadraticCurveTo(-8,-14,0,-11);
+  X.quadraticCurveTo(18,-8,28,3);
+  X.quadraticCurveTo(14,12,-8,9);
+  X.quadraticCurveTo(-22,5,-28,0); X.closePath(); X.fill(); X.stroke();
+  // belly
+  X.fillStyle='#d0f0ff'; X.beginPath(); X.ellipse(4,4,13,5,0,0,Math.PI*2); X.fill();
+  // dorsal
+  X.fillStyle='#3a9bb8'; X.strokeStyle='#1a4a6b'; X.lineWidth=1.5;
+  X.beginPath(); X.moveTo(-4,-11); X.lineTo(2,-28); X.lineTo(14,-11); X.closePath(); X.fill(); X.stroke();
+  // eye + smile
+  X.fillStyle='#fff'; X.beginPath(); X.arc(20,-2,3.5,0,Math.PI*2); X.fill();
+  X.fillStyle='#1a4a6b'; X.beginPath(); X.arc(20,-2,1.8,0,Math.PI*2); X.fill();
+  X.strokeStyle='#1a4a6b'; X.lineWidth=1.8;
+  X.beginPath(); X.arc(24,3,4,0.1,0.85); X.stroke();
+  // tail
+  X.fillStyle='#3a9bb8'; X.strokeStyle='#1a4a6b'; X.lineWidth=1.5;
+  X.beginPath(); X.moveTo(-28,0); X.lineTo(-42,-12); X.lineTo(-34,0); X.lineTo(-42,12); X.closePath(); X.fill(); X.stroke();
+
+  // Label
+  if(prog<0.55){
+    X.globalAlpha=Math.min(1,(0.55-prog)*3.5);
+    X.fillStyle='#FFD700'; X.font='bold 13px "Press Start 2P"'; X.textAlign='center';
+    X.shadowColor='rgba(0,0,0,0.6)'; X.shadowBlur=4;
+    X.fillText('SICK AIR! 🐬',0,-55); X.shadowBlur=0;
+  }
+  X.globalAlpha=1; X.restore();
+}
+
+// ── Orca (wink) ────────────────────────────
+function drawOrca(a){
+  const prog=a.riseT/2.6;
+  const riseAmt=Math.sin(Math.min(prog,1)*Math.PI)*85;
+  const ox=a.x, oy=waveY(ox,gWave.t)-riseAmt+45;
+
+  X.save(); X.translate(ox,oy);
+  // Body
+  X.fillStyle='#1a1a1a'; X.strokeStyle='#000'; X.lineWidth=2;
+  X.beginPath();
+  X.moveTo(-36,0); X.quadraticCurveTo(-10,-20,0,-17);
+  X.quadraticCurveTo(24,-13,38,5);
+  X.quadraticCurveTo(22,20,-10,15);
+  X.quadraticCurveTo(-28,9,-36,0); X.closePath(); X.fill(); X.stroke();
+  // White eye patch
+  X.fillStyle='#fff'; X.beginPath(); X.ellipse(20,-6,15,10,0.3,0,Math.PI*2); X.fill();
+  // White belly
+  X.fillStyle='#fff'; X.beginPath(); X.ellipse(4,9,18,7,0,0,Math.PI*2); X.fill();
+  // Dorsal
+  X.fillStyle='#1a1a1a'; X.strokeStyle='#000'; X.lineWidth=2;
+  X.beginPath(); X.moveTo(-4,-17); X.lineTo(0,-46); X.lineTo(14,-17); X.closePath(); X.fill(); X.stroke();
+  // Tail
+  X.fillStyle='#1a1a1a'; X.strokeStyle='#000'; X.lineWidth=1.5;
+  X.beginPath(); X.moveTo(-36,0); X.lineTo(-56,-15); X.lineTo(-46,0); X.lineTo(-56,15); X.closePath(); X.fill(); X.stroke();
+  // Eyes
+  X.fillStyle='#222'; X.beginPath(); X.arc(15,-8,5,0,Math.PI*2); X.fill();
+  X.fillStyle='#fff'; X.beginPath(); X.arc(16,-9,2,0,Math.PI*2); X.fill();
+  // Winking eye (right)
+  const winking=a.wink;
+  if(winking){
+    X.strokeStyle='#222'; X.lineWidth=3;
+    X.beginPath(); X.arc(28,-3,5,Math.PI,0); X.stroke();
+  } else {
+    X.fillStyle='#222'; X.beginPath(); X.arc(28,-3,5,0,Math.PI*2); X.fill();
+    X.fillStyle='#fff'; X.beginPath(); X.arc(29,-4,2,0,Math.PI*2); X.fill();
+  }
+  // Spout
+  if(prog>0.15&&prog<0.88){
+    const sa=Math.sin((prog-0.15)/(0.73)*Math.PI);
+    X.save(); X.globalAlpha=sa*0.75; X.strokeStyle='#aee6f5'; X.lineWidth=2;
+    for(let i=0;i<6;i++){
+      const sx=-10+i*5+Math.sin(a.riseT*4+i)*4;
+      const sh=18+i*7+Math.sin(a.riseT*3+i)*5;
+      X.beginPath(); X.moveTo(sx,-17); X.quadraticCurveTo(sx+Math.sin(i)*9,-17-sh*0.55,sx+Math.sin(i+1)*14,-17-sh); X.stroke();
+    }
+    X.restore();
+  }
+  // Label
+  const la=Math.max(0,Math.min(1,(prog-0.1)*3,(1-prog)*5));
+  X.globalAlpha=la;
+  X.fillStyle='#aee6f5'; X.font='bold 11px "Press Start 2P"'; X.textAlign='center';
+  X.shadowColor='rgba(0,0,0,0.6)'; X.shadowBlur=4;
+  X.fillText('SKETCHY! 🐋',0,-58); X.shadowBlur=0;
+  X.globalAlpha=1; X.restore();
+}
+
+// ── Ambient critters ──────────────────────
+function drawCritter(c){
+  const x=c.x, y=c.y+Math.sin(c.phase)*8;
+  X.save(); X.translate(x,y); X.globalAlpha=0.7;
+  if(c.type==='fin'){
+    X.fillStyle='#4a7a8a'; X.strokeStyle='#1a2a35'; X.lineWidth=1.5;
+    X.beginPath(); X.moveTo(-9,9); X.lineTo(0,-16); X.lineTo(11,9); X.closePath(); X.fill(); X.stroke();
+  } else {
+    X.fillStyle='#56b4d3'; X.strokeStyle='#1a4a6b'; X.lineWidth=1.5;
+    X.beginPath();
+    X.moveTo(-18,0); X.quadraticCurveTo(-4,-9,0,-7);
+    X.quadraticCurveTo(14,-4,20,2);
+    X.quadraticCurveTo(8,9,-4,7); X.closePath(); X.fill(); X.stroke();
+  }
+  X.globalAlpha=1; X.restore();
+}
+
+function drawParts(){
+  for(const p of gParts){
+    X.globalAlpha=p.life; X.fillStyle=p.col;
+    X.beginPath(); X.arc(p.x,p.y,p.r,0,Math.PI*2); X.fill();
+  }
+  X.globalAlpha=1;
+}
+
+// ── Canvas HUD elements ────────────────────
+function drawCanvasHUD(){
+  // Jump charge bar
+  if(gP.jumpHeld>2&&!gP.inAir){
+    const pct=gP.jumpHeld/55, bw=65*pct;
+    const bx=gP.x-32, by=gP.y-84;
+    X.fillStyle='rgba(0,0,0,0.45)'; X.fillRect(bx-2,by-2,70,14);
+    const jg=X.createLinearGradient(bx,0,bx+65,0);
+    jg.addColorStop(0,'#56cfe1'); jg.addColorStop(1,'#ffd700');
+    X.fillStyle=jg; X.fillRect(bx,by,bw,10);
+    X.strokeStyle='rgba(255,255,255,0.6)'; X.lineWidth=1.5; X.strokeRect(bx,by,65,10);
+    X.fillStyle='#fff'; X.font='6px "Press Start 2P"'; X.textAlign='left';
+    X.fillText('CHARGE',bx,by-3);
+  }
+  // Speed lines
+  const sr=(gScroll.speed-BASE_SPD)/(MAX_SPD-BASE_SPD);
+  if(sr>0.4){
+    X.save(); X.globalAlpha=sr*0.15; X.strokeStyle='#fff'; X.lineWidth=1;
+    for(let i=0;i<14;i++){
+      const lx=Math.random()*W, ly=SEA_Y*0.25+Math.random()*SEA_Y*0.6;
+      const len=30+Math.random()*90;
+      X.beginPath(); X.moveTo(lx,ly); X.lineTo(lx-len,ly+len*0.04); X.stroke();
+    }
+    X.restore();
+  }
+}
+
+// ════════════════════════════════════════
+//  GAME LOOP
+// ════════════════════════════════════════
+function gameLoop(ts){
+  if(STATE!=='playing') return;
+  const dt=Math.min((ts-lastTS)/1000,0.05); lastTS=ts;
+  gTimer.elapsed+=dt;
+  gTimer.remaining=Math.max(0,RUN_SEC-gTimer.elapsed);
+  gWave.t+=dt;
+
+  updatePlayer(dt);
+  updateObs();
+  updateAnimals(dt);
+  updateParts();
+
+  X.clearRect(0,0,W,H);
+  drawSky(gWave.t);
+  drawOcean(gWave.t);
+  for(const c of gCritters) drawCritter(c);
+  for(const o of gObs) drawObs(o,gWave.t);
+  drawWindsurfer(gP,gWave.t);
+  for(const a of gAnimals){
+    if(a.type==='dolphin') drawDolphin(a);
+    else if(a.type==='orca') drawOrca(a);
+  }
+  drawParts();
+  drawCanvasHUD();
+  updateHUD();
+
+  if(gTimer.remaining<=0){ endRun(); return; }
+  requestAnimationFrame(gameLoop);
+}
+
+// Idle loop for screens
+let idleT=0;
+function idleLoop(ts){
+  if(STATE==='playing') return;
+  idleT=ts/1000;
+  X.clearRect(0,0,W,H);
+  const fT={remaining:RUN_SEC,elapsed:0};
+  const fS={speed:BASE_SPD,bgOff:(idleT*BASE_SPD*0.14*60)%(W*2),midOff:(idleT*BASE_SPD*0.5*60)%(W*2)};
+  const fW={t:idleT,nearAmp:22,nearFreq:0.012,farAmp:12,farFreq:0.008};
+  const rT=gTimer,rS=gScroll,rW=gWave;
+  gTimer=fT;gScroll=fS;gWave=fW;
+  drawSky(idleT); drawOcean(idleT);
+  gTimer=rT;gScroll=rS;gWave=rW;
+  requestAnimationFrame(idleLoop);
+}
+idleLoop(0);
+
+// ── Screen management ────────────────────
+function startGame(){
+  clearTimeout(_obsTO);
+  initGame();
+  document.getElementById('scr-start').style.display='none';
+  document.getElementById('scr-result').style.display='none';
+  document.getElementById('hud').style.display='';
+  STATE='playing'; lastTS=performance.now();
+  requestAnimationFrame(gameLoop);
+}
+function endRun(){
+  STATE='result';
+  clearTimeout(_obsTO);
+  document.getElementById('hud').style.display='none';
+  document.getElementById('scr-result').style.display='';
+  const final=calcScore();
+  document.getElementById('res-score').textContent=final.toFixed(1);
+  const counts={};
+  for(const t of gTricks.log) counts[t.name]=(counts[t.name]||0)+1;
+  let tLines=Object.keys(counts).length===0?'No tricks — carve harder next time!'
+    :Object.entries(counts).map(([n,c])=>`${n} × ${c}`).join('   ');
+  const rating=final>=9.5?'🔥 LEGENDARY RUN!!':final>=8.5?'🤙 ABSOLUTELY SHREDDING!':final>=7?'⚡ CLEAN RIDE!':final>=5?'🌊 SOLID EFFORT!':'🏄 KEEP SHREDDING!';
+  document.getElementById('res-tricks').innerHTML=`<span style="font-size:1.2em;display:block;margin-bottom:8px">${rating}</span>${tLines}`;
+  requestAnimationFrame(idleLoop);
+}
+
+document.getElementById('btn-start').onclick=startGame;
+document.getElementById('btn-retry').onclick=startGame;
+function lerp(a,b,t){return a+(b-a)*t;}
+</script>
+</body>
+</html>
